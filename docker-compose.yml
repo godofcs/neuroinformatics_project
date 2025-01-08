@@ -1,0 +1,19 @@
+version: "3.9"
+services:
+    ai_temp:
+        build:
+            context: ./temp-ai
+            dockerfile: Dockerfile
+        ports:
+            - "1234:1234"
+
+    backend:
+        build:
+            context: ./back
+            dockerfile: Dockerfile
+        ports:
+            - "5678:5678"
+        depends_on:
+            - ai_temp
+        environment:
+            - AI_TEMP_URL=http://ai_temp:1234
