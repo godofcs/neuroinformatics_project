@@ -7,6 +7,7 @@ body {
 
     height: 100vh;
     background: linear-gradient(90deg, #e52e71, #ff8a00);
+    overflow: hidden;
 }
 
 code {
@@ -16,8 +17,8 @@ code {
 .slider-thumb::before {
     position: absolute;
     content: "";
-    left: 18%;
-    top: 10%;
+    left: 50%;
+    top: 50%;
     width: 900px;
     height: 900px;
     background: #17141d;
@@ -26,8 +27,10 @@ code {
     animation: sliderShape 5s linear infinite;
     display: block;
     z-index: -1;
+    transform: translate(-50%, -50%);
     -webkit-animation: sliderShape 5s linear infinite;
 }
+
 @keyframes sliderShape {
     0%,
     100% {

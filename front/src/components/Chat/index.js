@@ -5,46 +5,72 @@ const ChatApp = () => {
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState("");
     const [isSending, setIsSending] = useState(false);
+    const [uploadedImage, setUploadedImage] = useState(null);
 
     const handleSendMessage = async () => {
-        if (inputValue.trim() === "") return;
+        if (inputValue.trim() === "" && !uploadedImage) return;
 
         setIsSending(true);
 
-        const userMessage = { type: "text", content: inputValue, sender: "user" };
-        setMessages((prevMessages) => [...prevMessages, userMessage]);
+        const newMessages = [];
 
-        setInputValue("");
+        if (inputValue.trim() && !uploadedImage) {
+            const userMessage = { type: "text", content: inputValue, sender: "user" };
+            newMessages.push(userMessage);
+        }
 
-        const responseMessage = await getServerResponse(inputValue);
-        setMessages((prevMessages) => [...prevMessages, responseMessage]);
+        if (uploadedImage) {
+            const imageMessage = {
+                type: "image",
+                content: URL.createObjectURL(uploadedImage),
+                sender: "user",
+            };
+            newMessages.push(imageMessage);
+        }
+
+        setMessages((prevMessages) => [...prevMessages, ...newMessages]);
+
+        const formData = new FormData();
+        if (uploadedImage) {
+            formData.append("image", uploadedImage);
+        }
+        formData.append("query", inputValue);
+
+        if (!uploadedImage) {
+            setInputValue("");
+        }
+
+        setUploadedImage(null);
+
+        try {
+            const response = await axios.post("http://localhost:5678/ai/request", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+
+            const responseMessage = {
+                type: "text",
+                content: response.data.test || "Ответ не найден",
+                sender: "server",
+            };
+
+            setMessages((prevMessages) => [...prevMessages, responseMessage]);
+        } catch (error) {
+            console.error("Ошибка при запросе:", error);
+            setMessages((prevMessages) => [
+                ...prevMessages,
+                { type: "text", content: "Ошибка сервера. Попробуйте еще раз.", sender: "server" },
+            ]);
+        }
 
         setIsSending(false);
     };
 
-    const getServerResponse = async (userInput) => {
-        if (userInput.toLowerCase().includes("video")) {
-            return { type: "video", content: "https://www.w3schools.com/html/mov_bbb.mp4", sender: "server" };
-        } else if (userInput.toLowerCase().includes("gif")) {
-            return {
-                type: "gif",
-                content: "https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif",
-                sender: "server",
-            };
-        } else if (userInput.toLowerCase().includes("image")) {
-            return {
-                type: "image",
-                content: "https://cdn1.flamp.ru/36b29769ceae3a4fc5d88670949e670a.jpg",
-                sender: "server",
-            };
+    const handleImageUpload = (event) => {
+        const file = event.target.files[0];
+        if (file && file.type === "image/jpeg") {
+            setUploadedImage(file);
         } else {
-            try {
-                const response = await axios.post("http://localhost:5678/ai/request", { query: userInput });
-                return { type: "text", content: response.data.test || "Ответ не найден", sender: "server" };
-            } catch (error) {
-                console.error("Ошибка при запросе:", error);
-                return { type: "text", content: "Ошибка сервера. Попробуйте еще раз.", sender: "server" };
-            }
+            alert("Пожалуйста, загрузите файл в формате JPG.");
         }
     };
 
@@ -80,20 +106,53 @@ const ChatApp = () => {
                     </div>
                 ))}
             </div>
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                <div style={styles.inputContainer}>
-                    <textarea
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        style={styles.textarea}
-                        placeholder="Введите запрос..."
-                        disabled={isSending}
-                    />
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexDirection: "column" }}>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center", flexDirection: "row" }}>
+                    <div style={styles.inputContainer}>
+                        <textarea
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            style={styles.textarea}
+                            placeholder="Введите запрос..."
+                            disabled={isSending || uploadedImage}
+                        />
+                    </div>
+                    <div style={{ display: "flex", gap: "10px", flexDirection: "column" }}>
+                        <button onClick={handleSendMessage} style={styles.button} disabled={isSending}>
+                            {isSending ? "Отправка..." : "Отправить"}
+                        </button>
+                        <label style={styles.uploadButton}>
+                            Загрузить
+                            <input
+                                type="file"
+                                accept=".jpg"
+                                onChange={handleImageUpload}
+                                style={styles.fileInput}
+                                disabled={isSending}
+                            />
+                        </label>
+                    </div>
                 </div>
-                <button onClick={handleSendMessage} style={styles.button} disabled={isSending}>
-                    {isSending ? "Отправка..." : "Отправить"}
-                </button>
+                {uploadedImage ? (
+                    <div style={{ ...styles.uploadedFileName, display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span>Загружен файл: {uploadedImage.name}</span>
+                        <button
+                            onClick={() => setUploadedImage(null)}
+                            style={{
+                                background: "none",
+                                border: "none",
+                                color: "red",
+                                fontSize: "16px",
+                                cursor: "pointer",
+                            }}
+                        >
+                            ✖
+                        </button>
+                    </div>
+                ) : (
+                    <div style={{ height: "44px" }}></div>
+                )}
             </div>
         </div>
     );
@@ -156,9 +215,38 @@ const styles = {
         fontSize: "14px",
         border: "none",
         borderRadius: "8px",
+        backgroundColor: "#28a745",
+        color: "#fff",
+        cursor: "pointer",
+    },
+    uploadButton: {
+        position: "relative",
+        padding: "10px",
+        fontSize: "14px",
+        textAlign: "center",
+        border: "none",
+        borderRadius: "8px",
         backgroundColor: "#007bff",
         color: "#fff",
         cursor: "pointer",
+    },
+    fileInput: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: "100%",
+        height: "100%",
+        opacity: 0,
+        cursor: "pointer",
+    },
+    uploadedFileName: {
+        fontSize: "14px",
+        color: "black",
+        backgroundColor: "#e5ddd5",
+        padding: "10px",
+        borderRadius: "8px",
     },
 };
 
