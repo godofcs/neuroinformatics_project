@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 1234
 
 # Команда для запуска приложения
-CMD ["node", "tempAI.js"]
+CMD ["node", "service.js"]
