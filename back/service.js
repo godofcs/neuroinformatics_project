@@ -48,6 +48,12 @@ app.post("/ai/request", async (req, res) => {
             return res.status(500).json({ error: "RabbitMQ канал не инициализирован." });
         }
 
+        if (!image) {
+            return res
+                .status(200)
+                .json({ error: "Спасибо, что отправили нам текст! Но сейчас мы работаем только с картинками)" });
+        }
+
         const correlationId = uuidv4();
 
         const responsePromise = new Promise((resolve, reject) => {
