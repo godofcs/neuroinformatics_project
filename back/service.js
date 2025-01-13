@@ -3,15 +3,18 @@ const axios = require("axios");
 const cors = require("cors");
 const amqp = require("amqplib");
 const { v4: uuidv4 } = require("uuid");
+const FormData = require("form-data");
+
 const app = express();
 const PORT = 5678;
-const AI_TEMP_URL = "http://ai_temp:1234/ai/temp";
+const AI_URL = "http://ai:8000/generate-caption/";
 
 const REQUEST_QUEUE_NAME = "requestQueue";
 const RESPONSE_QUEUE_NAME = "responseQueue";
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 let channel;
 let connection;
@@ -39,7 +42,7 @@ async function connectRabbitMQ() {
 
 app.post("/ai/request", async (req, res) => {
     try {
-        const { message } = req.body;
+        const { image } = req.body;
 
         if (!channel) {
             return res.status(500).json({ error: "RabbitMQ канал не инициализирован." });
@@ -55,16 +58,16 @@ app.post("/ai/request", async (req, res) => {
                     reject(new Error("Превышено время ожидания ответа"));
                     pendingRequests.delete(correlationId);
                 }
-            }, 10000);
+            }, 30000);
         });
 
-        await channel.sendToQueue(REQUEST_QUEUE_NAME, Buffer.from(JSON.stringify({ message })), {
+        await channel.sendToQueue(REQUEST_QUEUE_NAME, Buffer.from(JSON.stringify({ image })), {
             persistent: true,
             correlationId,
             replyTo: RESPONSE_QUEUE_NAME,
         });
 
-        console.log("Сообщение отправлено в очередь:", message);
+        console.log("Сообщение отправлено в очередь с изображением.");
 
         const response = await responsePromise;
         res.json(response);
@@ -105,9 +108,21 @@ async function processQueue() {
         REQUEST_QUEUE_NAME,
         async (msg) => {
             if (msg !== null) {
-                const { message } = JSON.parse(msg.content.toString());
+                const { image } = JSON.parse(msg.content.toString());
                 try {
-                    const response = await axios.get(AI_TEMP_URL, { params: { message } });
+                    const buffer = Buffer.from(image, "base64");
+
+                    const formData = new FormData();
+
+                    formData.append("file", buffer, {
+                        filename: "image.png",
+                        contentType: "image/png",
+                    });
+
+                    const response = await axios.post(AI_URL, formData, {
+                        headers: formData.getHeaders(),
+                    });
+
                     console.log("Ответ от AI:", response.data);
 
                     console.log(
