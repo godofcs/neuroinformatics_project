@@ -15,9 +15,21 @@ services:
             - "5678:5678"
         depends_on:
             - ai_temp
+            - rabbitmq
+        environment:
+            - RABBITMQ_HOST=rabbitmq
+            - RABBITMQ_PORT=5672
     ui:
         build: "./front"
         ports:
             - "3000:3000"
         depends_on:
             - backend
+    rabbitmq:
+        image: "rabbitmq:management"
+        environment:
+            RABBITMQ_DEFAULT_USER: guest
+            RABBITMQ_DEFAULT_PASS: guest
+        ports:
+            - "15672:15672" # ui
+            - "5672:5672"
