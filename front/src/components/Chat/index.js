@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
 const ChatApp = () => {
@@ -7,6 +7,17 @@ const ChatApp = () => {
     const [isSending, setIsSending] = useState(false);
     const [uploadedImage, setUploadedImage] = useState(null);
     const [uploadedImageBase64, setUploadedImageBase64] = useState(null);
+
+    const chatBoxRef = useRef(null);
+
+    useEffect(() => {
+        if (chatBoxRef.current) {
+            chatBoxRef.current.scrollTo({
+                top: chatBoxRef.current.scrollHeight,
+                behavior: "smooth",
+            });
+        }
+    }, [messages]);
 
     const handleSendMessage = async () => {
         if (inputValue.trim() === "" && !uploadedImageBase64) return;
@@ -41,11 +52,10 @@ const ChatApp = () => {
             const response = await axios.post("http://localhost:5678/ai/request", data, {
                 headers: { "Content-Type": "application/json" },
             });
-            console.log(`response: `, response);
 
             const responseMessage = {
                 type: "text",
-                content: response.data.caption || "Ответ не найден",
+                content: response.data.caption || response.data.error || "Ответ не найден",
                 sender: "server",
             };
 
@@ -85,7 +95,7 @@ const ChatApp = () => {
     return (
         <div style={styles.container}>
             <h1 style={{ color: "white" }}>AI CHAT</h1>
-            <div style={styles.chatBox}>
+            <div ref={chatBoxRef} style={styles.chatBox}>
                 {messages.map((message, index) => (
                     <div
                         key={index}
@@ -185,6 +195,8 @@ const styles = {
         borderRadius: "8px",
         fontSize: "14px",
         wordWrap: "break-word",
+        textAlign: "left",
+        lineHeight: "1.5",
     },
     video: {
         maxWidth: "100%",
