@@ -13,7 +13,7 @@ services:
         ports:
             - "5678:5678"
         depends_on:
-            - ai_temp
+            - ai
             - rabbitmq
         environment:
             - RABBITMQ_HOST=rabbitmq
