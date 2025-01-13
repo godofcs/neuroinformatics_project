@@ -6,23 +6,24 @@ const ChatApp = () => {
     const [inputValue, setInputValue] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [uploadedImage, setUploadedImage] = useState(null);
+    const [uploadedImageBase64, setUploadedImageBase64] = useState(null);
 
     const handleSendMessage = async () => {
-        if (inputValue.trim() === "" && !uploadedImage) return;
+        if (inputValue.trim() === "" && !uploadedImageBase64) return;
 
         setIsSending(true);
 
         const newMessages = [];
 
-        if (inputValue.trim() && !uploadedImage) {
+        if (inputValue.trim() && !uploadedImageBase64) {
             const userMessage = { type: "text", content: inputValue, sender: "user" };
             newMessages.push(userMessage);
         }
 
-        if (uploadedImage) {
+        if (uploadedImageBase64) {
             const imageMessage = {
                 type: "image",
-                content: URL.createObjectURL(uploadedImage),
+                content: `data:image/jpeg;base64,${uploadedImageBase64}`,
                 sender: "user",
             };
             newMessages.push(imageMessage);
@@ -30,29 +31,21 @@ const ChatApp = () => {
 
         setMessages((prevMessages) => [...prevMessages, ...newMessages]);
 
-        const formData = new FormData();
-        if (uploadedImage) {
-            formData.append("image", uploadedImage);
-        } else {
-            formData.append("message", inputValue);
-        }
+        const data = uploadedImageBase64 ? { image: uploadedImageBase64 } : { message: inputValue };
 
-        if (!uploadedImage) {
-            setInputValue("");
-        }
-
+        setInputValue("");
         setUploadedImage(null);
-
-        const type = uploadedImage ? "multipart/form-data" : "application/json";
+        setUploadedImageBase64(null);
 
         try {
-            const response = await axios.post("http://localhost:5678/ai/request", formData, {
-                headers: { "Content-Type": type },
+            const response = await axios.post("http://localhost:5678/ai/request", data, {
+                headers: { "Content-Type": "application/json" },
             });
+            console.log(`response: `, response);
 
             const responseMessage = {
                 type: "text",
-                content: response.data.test || "Ответ не найден",
+                content: response.data.caption || "Ответ не найден",
                 sender: "server",
             };
 
@@ -71,7 +64,12 @@ const ChatApp = () => {
     const handleImageUpload = (event) => {
         const file = event.target.files[0];
         if (file && file.type === "image/jpeg") {
-            setUploadedImage(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setUploadedImage(file);
+                setUploadedImageBase64(reader.result.split(",")[1]);
+            };
+            reader.readAsDataURL(file);
         } else {
             alert("Пожалуйста, загрузите файл в формате JPG.");
         }
@@ -118,7 +116,7 @@ const ChatApp = () => {
                             onKeyDown={handleKeyDown}
                             style={styles.textarea}
                             placeholder="Введите запрос..."
-                            disabled={isSending || uploadedImage}
+                            disabled={isSending || uploadedImageBase64}
                         />
                     </div>
                     <div style={{ display: "flex", gap: "10px", flexDirection: "column" }}>
