@@ -33,8 +33,9 @@ const ChatApp = () => {
         const formData = new FormData();
         if (uploadedImage) {
             formData.append("image", uploadedImage);
+        } else {
+            formData.append("message", inputValue);
         }
-        formData.append("query", inputValue);
 
         if (!uploadedImage) {
             setInputValue("");
@@ -42,9 +43,11 @@ const ChatApp = () => {
 
         setUploadedImage(null);
 
+        const type = uploadedImage ? "multipart/form-data" : "application/json";
+
         try {
             const response = await axios.post("http://localhost:5678/ai/request", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
+                headers: { "Content-Type": type },
             });
 
             const responseMessage = {
